@@ -412,7 +412,7 @@ function optionsframework_options()
 
     $options[] = array(
         'name' => __('视频名称', 'options_framework_theme'),
-        'desc' => __('仅支持MP4格式，比如“https://1.cn/MV.mp4”，只需要填写视频文件名“MV”即可，多个视频用英文逗号隔开如“MV,AV”，无需在意顺序，因为加载是随机的', 'options_framework_theme'),
+        'desc' => __('支持 MP4 和 HLS（m3u8）。填写相对于上方地址的文件名或路径，例如“MV.mp4”或“video/index.m3u8”；旧的无扩展名写法“MV”仍按 MP4 处理。多个视频用英文逗号隔开，播放时随机选择。', 'options_framework_theme'),
         'id' => 'amv_title',
         'std' => '',
         'type' => 'text'
@@ -451,6 +451,18 @@ function optionsframework_options()
     $options[] = array(
         'name' => __('文章页', 'options_framework_theme'),
         'type' => 'heading'
+    );
+
+    $options[] = array(
+        'name' => __('访客评论验证码', 'options_framework_theme'),
+        'desc' => __('用于验证未登录评论者的邮箱。开启后，访客需获取邮件中的 6 位验证码才能发表评论；已登录用户无需验证。默认开启。', 'options_framework_theme'),
+        'id' => 'guest_comment_captcha',
+        'std' => 'yes',
+        'type' => 'radio',
+        'options' => array(
+            'yes' => __('开启', 'options_framework_theme'),
+            'no' => __('关闭', 'options_framework_theme')
+        )
     );
 
     $options[] = array(

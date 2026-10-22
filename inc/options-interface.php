@@ -145,7 +145,7 @@ function optionsframework_fields() {
 			$name = $option_name .'['. $value['id'] .']';
 			foreach ($value['options'] as $key => $option) {
 				$id = $option_name . '-' . $value['id'] .'-'. $key;
-				$output .= '<input class="of-input of-radio" type="radio" name="' . esc_attr( $name ) . '" id="' . esc_attr( $id ) . '" value="'. esc_attr( $key ) . '" '. checked( $val, $key, false) .' /><label for="' . esc_attr( $id ) . '">' . esc_html( $option ) . '</label>';
+				$output .= '<label class="of-radio-option" for="' . esc_attr( $id ) . '"><input class="of-input of-radio" type="radio" name="' . esc_attr( $name ) . '" id="' . esc_attr( $id ) . '" value="'. esc_attr( $key ) . '" '. checked( $val, $key, false) .' /><span>' . esc_html( $option ) . '</span></label>';
 			}
 			break;
 

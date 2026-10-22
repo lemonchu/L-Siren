@@ -204,7 +204,7 @@ function optionsframework_add_page() {
 /* Loads the CSS */
 
 function optionsframework_load_styles() {
-	wp_enqueue_style( 'optionsframework', OPTIONS_FRAMEWORK_DIRECTORY.'css/optionsframework.css' );
+	wp_enqueue_style( 'optionsframework', OPTIONS_FRAMEWORK_DIRECTORY.'css/optionsframework.css', array(), filemtime( get_template_directory() . '/inc/css/optionsframework.css' ) );
 	if ( !wp_style_is( 'wp-color-picker','registered' ) ) {
 		wp_register_style( 'wp-color-picker', OPTIONS_FRAMEWORK_DIRECTORY.'css/color-picker.min.css' );
 	}

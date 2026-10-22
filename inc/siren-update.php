@@ -68,7 +68,7 @@ function bgvideo()
 {
     if (!akina_option('focus_amv') || akina_option('focus_height')) $dis = 'display:none;';
     $html = '<div id="video-container" style="' . $dis . '">';
-    $html .= '<video id="bgvideo" class="video" video-name="" src="" width="auto" preload="auto"></video>';
+    $html .= '<video id="bgvideo" class="video" video-name="" src="" width="auto" preload="auto" playsinline></video>';
     $html .= '<div id="video-btn" class="loadvideo videolive"></div>';
     $html .= '<div id="video-add"></div>';
     $html .= '<div class="video-stu"></div>';

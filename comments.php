@@ -35,6 +35,8 @@ if (post_password_required()) {
             if (comments_open()) {
                 $robot_comments = akina_option('norobot') ? '<label class="siren-checkbox-label"><input class="siren-checkbox-radio" type="checkbox" name="no-robot"><span class="siren-no-robot-checkbox siren-checkbox-radioInput"></span>打卡</label>' : '';
                 $private_ms = akina_option('open_private_message') ? '<label class="siren-checkbox-label"><input class="siren-checkbox-radio" type="checkbox" name="is-private"><span class="siren-is-private-checkbox siren-checkbox-radioInput"></span>私密</label>' : '';
+                $captcha_required = siren_guest_comment_captcha_required();
+                $get_captcha = $captcha_required ? '<div class="meme"><button type="button" class="meme_btn comment-captcha-button" data-nonce="' . esc_attr(wp_create_nonce('siren_email_captcha')) . '" onclick="get_captcha(this);"><span>获取验证码</span></button></div>' : '';
                 $text = akina_option('comments_text');
                 $args = array(
                     'id_form' => 'commentform',
@@ -43,17 +45,21 @@ if (post_password_required()) {
                     'title_reply_to' => esc_html__('回复给 %s', 'akina'),
                     'cancel_reply_link' => esc_html__('取消回复', 'akina'),
                     'label_submit' => esc_html__('发送评论', 'akina'),
-                    'comment_field' => get_meme() . '<div id="comments_edit" placeholder="' . esc_attr__($text, 'akina') . '" contenteditable="true" class="textarea" onmouseup="comments_edit_mouseup();" onmouseout="comments_edit_mouseout();" onkeyup="comments_edit_keyup();"></div>' . '<input name="comment" type="hidden" />',
+                    'comment_field' => get_meme() . $get_captcha . '<div id="comments_edit" placeholder="' . esc_attr__($text, 'akina') . '" contenteditable="true" class="textarea" onmouseup="comments_edit_mouseup();" onmouseout="comments_edit_mouseout();" onkeyup="comments_edit_keyup();"></div>' . '<input name="comment" type="hidden" />',
                     'comment_notes_after' => '<div class="comment_button">' . $robot_comments . $private_ms . '</div>',
                     'comment_notes_before' => '',
                     'submit_button' => '<input onclick="comments_submit();" name="%1$s" type="button" id="%2$s" class="%3$s" value="%4$s" />',
                     'fields' => apply_filters('comment_form_default_fields', array(
                             'author' => '<input type="text" placeholder="' . esc_attr__('昵称', 'akina') . ' ' . ($req ? '(' . esc_attr__('必填', 'akina') . ')' : '') . '" name="author" id="author" value="' . esc_attr($comment_author) . '" size="22" tabindex="1" ' . ($req ? "aria-required='true'" : '') . ' />',
                             'email' => '<input type="text" placeholder="' . esc_attr__('邮箱', 'akina') . ' ' . ($req ? '(' . esc_attr__('必填', 'akina') . ')' : '') . '" name="email" id="email" value="' . esc_attr($comment_author_email) . '" size="22" tabindex="1" ' . ($req ? "aria-required='true'" : '') . ' />',
-                            'url' => '<input type="text" placeholder="' . esc_attr__('网站', 'akina') . ' ' . ($req ? '(' . esc_attr__('选填', 'akina') . ')' : '') . '" name="url" id="url" value="' . esc_attr($comment_author_url) . '" size="22" tabindex="1" />'
+                            'url' => '<input type="text" placeholder="' . esc_attr__('网站', 'akina') . ' ' . ($req ? '(' . esc_attr__('选填', 'akina') . ')' : '') . '" name="url" id="url" value="' . esc_attr($comment_author_url) . '" size="22" tabindex="1" />',
+                            'captcha' => '<input type="text" placeholder="验证码 (必填)" name="captcha" id="captcha" value="" size="6" maxlength="6" inputmode="numeric" autocomplete="one-time-code" tabindex="1" ' . ($req ? "aria-required='true'" : '') . '/>'
                         )
                     )
                 );
+                if (!$captcha_required) {
+                    unset($args['fields']['captcha']);
+                }
                 comment_form($args);
             }
             ?>

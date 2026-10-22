@@ -302,7 +302,8 @@ function akina_scripts()
     wp_enqueue_script('jq', 'https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js', array(), SIREN_VERSION, true);
     wp_enqueue_script('pjax-libs', get_template_directory_uri() . '/js/jquery.pjax.js', array(), SIREN_VERSION, true);
     wp_enqueue_script('input', get_template_directory_uri() . '/js/input.min.js', array(), SIREN_VERSION, true);
-    wp_enqueue_script('app', get_template_directory_uri() . '/js/app.js', array(), SIREN_VERSION, true);
+    $app_url = add_query_arg('v', filemtime(get_template_directory() . '/js/app.js'), get_template_directory_uri() . '/js/app.js');
+    wp_enqueue_script('app', $app_url, array('jq'), null, true);
     $mv_live = akina_option('focus_mvlive') ? 'open' : 'close';
     $movies = akina_option('focus_amv') ? array('url' => akina_option('amv_url'), 'name' => akina_option('amv_title'), 'live' => $mv_live) : 'close';
     $auto_height = akina_option('focus_height') ? 'fixed' : 'auto';
@@ -352,6 +353,7 @@ require get_template_directory() . '/inc/customizer.php';
  */
 require get_template_directory() . '/inc/siren-update.php';
 require get_template_directory() . '/inc/categories-images.php';
+require get_template_directory() . '/inc/operations.php';
 
 /**
  * Disable Embeds
@@ -841,4 +843,43 @@ if (version_compare($wp_version, '5.1.1', '>=')) {
         }
         return $link;
     }
+}
+
+// Registration and comment email verification.
+require_once get_template_directory() . '/inc/captcha.php';
+
+/**
+ * 递归处理所有内部短代码
+ */
+function recode($content){
+	$recode_l = do_shortcode($content);
+	$recode_f = $content;
+	while($recode_l != $recode_f){
+		$recode_f = $recode_l;
+		$recode_l = do_shortcode($content);
+	}
+	return $recode_l;
+}
+
+// 显示中国内容的短代码
+function cn_content($atts, $content = null) {
+    if (is_china()) {
+        return recode($content);
+    }
+    return "";
+}
+add_shortcode('china', 'cn_content');
+
+function ab_content($atts, $content = null) {
+    if (!is_china()) {
+        return recode($content);
+    }
+    return "";
+}
+add_shortcode('abroad', 'ab_content');
+
+// 判断是否是中国用户：保留语言条件，统一查询本地 IPv4/IPv6 地址库。
+require_once get_template_directory() . '/inc/ip-location.php';
+function is_china() {
+    return siren_visitor_is_china($_SERVER);
 }

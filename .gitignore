@@ -1,0 +1,40 @@
+# Local development notes and diagnostic tools
+/AGENTS.md
+/DEVELOPMENT_LOG.md
+
+# Local credentials (meting/api.php currently contains account cookies)
+/meting/api.php
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# APNIC build output, raw data and update scratch files
+/iplib2/fetch
+/iplib2/d.txt
+/iplib2/ipv4.txt
+/iplib2/ipv6.txt
+/iplib2/*.json
+/iplib2/delegated-apnic-*
+/iplib2/*.o
+/iplib2/*.out
+/iplib2/*.exe
+/iplib2/tests/
+/iplib2/*.lock
+/iplib2/.apnic-update*
+
+# Editor, OS and temporary files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+__pycache__/
+*.py[cod]
