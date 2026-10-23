@@ -76,6 +76,9 @@
         </script>
     <?php } ?>
     <script src="https://unpkg.com/hls.js@1.7.3/dist/hls.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/aplayer/dist/APlayer.min.css">
+    <link rel="stylesheet" href="https://www.lemonpig.cn/wp-content/themes/H-Siren/aplayer.css?ver=<?php echo esc_attr(filemtime(get_template_directory() . '/aplayer.css')); ?>">
+    <script src="https://unpkg.com/aplayer/dist/APlayer.min.js"></script>
     <!--[if IE]>
     <script type="text/javascript">
         if (!!window.ActiveXObject || "ActiveXObject" in window) {

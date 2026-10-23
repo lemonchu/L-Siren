@@ -296,6 +296,26 @@ add_action('after_setup_theme', 'akina_content_width', 0);
 /**
  * Enqueue Scripts And Styles
  */
+function siren_video_sources(): array
+{
+    $list = akina_option('amv_sources', null);
+    if ($list !== null) {
+        return array_values(array_filter(array_map('trim', preg_split('/\R/', $list))));
+    }
+    // Existing installations keep playing until the combined field is saved.
+    $sources = array();
+    $base = rtrim((string) akina_option('amv_url', ''), '/');
+    foreach (array_filter(array_map('trim', explode(',', (string) akina_option('amv_title', '')))) as $name) {
+        $url = preg_match('~^https?://~i', $name) ? $name : $base . '/' . $name;
+        if (!preg_match('/\.(mp4|m3u8)$/i', wp_parse_url($url, PHP_URL_PATH) ?? '') &&
+            !str_contains($url, 'action=siren_cloud_video_play')) {
+            $url = preg_replace('~(?=[?#]|$)~', '.mp4', $url, 1);
+        }
+        $sources[] = $url;
+    }
+    return $sources;
+}
+
 function akina_scripts()
 {
     wp_enqueue_style('siren', get_stylesheet_uri(), array(), SIREN_VERSION);
@@ -305,7 +325,7 @@ function akina_scripts()
     $app_url = add_query_arg('v', filemtime(get_template_directory() . '/js/app.js'), get_template_directory_uri() . '/js/app.js');
     wp_enqueue_script('app', $app_url, array('jq'), null, true);
     $mv_live = akina_option('focus_mvlive') ? 'open' : 'close';
-    $movies = akina_option('focus_amv') ? array('url' => akina_option('amv_url'), 'name' => akina_option('amv_title'), 'live' => $mv_live) : 'close';
+    $movies = akina_option('focus_amv') ? array('sources' => siren_video_sources(), 'live' => $mv_live) : 'close';
     $auto_height = akina_option('focus_height') ? 'fixed' : 'auto';
     $live2d_tips = akina_option('live2d_s') ? 'open' : 'close';
     $hitokoto = akina_option('hitokoto_o') ? 'open' : 'close';
@@ -353,6 +373,7 @@ require get_template_directory() . '/inc/customizer.php';
  */
 require get_template_directory() . '/inc/siren-update.php';
 require get_template_directory() . '/inc/categories-images.php';
+require_once get_template_directory() . '/inc/cloud-video.php';
 require get_template_directory() . '/inc/operations.php';
 
 /**
@@ -738,14 +759,15 @@ function sig_allowed_html_tags_in_comments()
 add_action('init', 'sig_allowed_html_tags_in_comments', 10);
 
 /**
- * 后台编辑器添加前台CSS
+ * 编辑区域样式，同时支持经典编辑器和区块编辑器。
  */
 function sig_add_editor_styles()
 {
-    add_editor_style('style.css');
+    add_theme_support('editor-styles');
+    add_editor_style('inc/css/editor-style.css');
 }
 
-add_action('init', 'sig_add_editor_styles');
+add_action('after_setup_theme', 'sig_add_editor_styles');
 
 /**
  * 净化图片多余标签结构

@@ -403,19 +403,12 @@ function optionsframework_options()
     );
 
     $options[] = array(
-        'name' => __('视频地址', 'options_framework_theme'),
-        'desc' => __('视频的来源地址，该地址拼接下方的视频名称，地址尾部不需要加斜杠，比如“https://1.cn/MV.mp4”，只需要填写“https://1.cn”，这个地址是固定的', 'options_framework_theme'),
-        'id' => 'amv_url',
-        'std' => '',
-        'type' => 'text'
-    );
-
-    $options[] = array(
-        'name' => __('视频名称', 'options_framework_theme'),
-        'desc' => __('支持 MP4 和 HLS（m3u8）。填写相对于上方地址的文件名或路径，例如“MV.mp4”或“video/index.m3u8”；旧的无扩展名写法“MV”仍按 MP4 处理。多个视频用英文逗号隔开，播放时随机选择。', 'options_framework_theme'),
-        'id' => 'amv_title',
-        'std' => '',
-        'type' => 'text'
+        'name' => __('视频列表', 'options_framework_theme'),
+        'desc' => __('每行一个完整地址，可以混用 MP4、m3u8 和本站视频 API，播放时随机选择。移动云盘的固定播放地址在“运维仪表板 → 第一屏”复制。', 'options_framework_theme'),
+        'id' => 'amv_sources',
+        'std' => akina_option('amv_sources', null) === null ? implode("\n", siren_video_sources()) : '',
+        'type' => 'textarea',
+        'settings' => array('rows' => 5)
     );
 
     $options[] = array(
@@ -893,7 +886,7 @@ function optionsframework_options()
 
     $options[] = array(
         'name' => __('允许私密评论', 'options_framework_theme'),
-        'desc' => __('默认关闭，勾选开启，允许用户设置自己的评论对其他人不可见', 'options_framework_theme'),
+        'desc' => __('默认关闭，勾选后允许发表私密评论。关闭后不影响已有私密评论，其内容仍按阅读权限显示。', 'options_framework_theme'),
         'id' => 'open_private_message',
         'std' => '0',
         'type' => 'checkbox'

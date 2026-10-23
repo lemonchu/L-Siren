@@ -147,6 +147,18 @@
     max-width: 600px;
     padding: 8px 12px;
 }
+.siren-cloud-video,
+.siren-cloud-video-links {
+    margin-top: 32px;
+    padding-top: 32px;
+    border-top: 1px solid #e8e8e8;
+}
+.siren-cloud-video .form-table th {
+    width: 140px;
+}
+.siren-cloud-video-entry {
+    margin: 24px 0;
+}
 @media (max-width: 600px) {
     .siren-operations {
         margin-top: 20px;

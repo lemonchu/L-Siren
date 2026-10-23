@@ -1,5 +1,7 @@
 <?php
-/** Manual maintenance actions. Opening this page never starts an update. */
+/** Maintenance tools and runtime configuration. */
+
+require_once __DIR__ . '/operations-cloud-video.php';
 
 add_action('admin_menu', function () {
     add_theme_page('L-Siren 运维仪表板', 'L-Siren 运维仪表板', 'manage_options',
@@ -27,7 +29,8 @@ add_action('admin_enqueue_scripts', function ($hook) {
     }
     wp_localize_script('siren-operations', 'sirenOperations', array(
         'url' => admin_url('admin-ajax.php'), 'nonce' => wp_create_nonce('siren-update-ip-database'),
-        'testNonce' => wp_create_nonce('siren-test-ip')));
+        'testNonce' => wp_create_nonce('siren-test-ip'), 'captchaNonce' => wp_create_nonce('siren-initialize-captcha'),
+        'cloudNonce' => wp_create_nonce('siren-cloud-video')));
 });
 
 function siren_operations_ip_status(array $data, string $path): array
@@ -41,6 +44,7 @@ function siren_operations_ip_status(array $data, string $path): array
 
 function siren_operations_page()
 {
+    global $wpdb;
     if (!current_user_can('manage_options')) {
         wp_die('你没有访问此页面的权限。');
     }
@@ -52,7 +56,7 @@ function siren_operations_page()
     ?>
     <div class="wrap siren-operations">
         <h1>L-Siren 运维仪表板</h1>
-        <p>需要时手动运行，每个操作单独生效。</p>
+        <p>维护工具和运行配置，每项单独操作。</p>
         <nav class="nav-tab-wrapper" aria-label="运维分类">
             <?php foreach ($categories as $index => $category) : ?>
                 <a class="nav-tab<?php echo $tab === $index ? ' nav-tab-active' : ''; ?>"
@@ -101,6 +105,18 @@ function siren_operations_page()
                     </div>
                     <div id="siren-test-ip-result" class="siren-operation-result" role="status" aria-live="polite" aria-atomic="true" hidden></div>
                 </form>
+            <?php elseif ($tab === 1) : ?>
+                <?php siren_operations_cloud_video(); ?>
+            <?php elseif ($tab === 2) : $table_exists = siren_captcha_table_exists(); ?>
+                <h2>评论邮箱验证码</h2>
+                <p>首次使用时，创建验证码所需的数据表。已有表不会清空或修改。</p>
+                <dl class="siren-ip-status">
+                    <div><dt>数据表</dt><dd><?php echo esc_html($wpdb->prefix . 'captcha'); ?></dd></div>
+                    <div><dt>状态</dt><dd id="siren-captcha-table-status"><?php echo $table_exists ? '已存在' : '尚未创建'; ?></dd></div>
+                </dl>
+                <button type="button" class="button button-primary" id="siren-initialize-captcha" <?php disabled($table_exists); ?>>初始化验证码表</button>
+                <p class="description"><?php echo $table_exists ? '验证码表已存在，无需初始化。' : '建表后还需要配置邮件服务，访客才能收到验证码。'; ?></p>
+                <div id="siren-captcha-result" class="siren-operation-result" role="status" aria-live="polite" aria-atomic="true" hidden></div>
             <?php else : ?>
                 <h2><?php echo esc_html($categories[$tab]['name']); ?></h2>
                 <p>这里暂时没有运维操作。</p>
@@ -112,6 +128,22 @@ function siren_operations_page()
 
 add_action('wp_ajax_siren_update_ip_database', 'siren_operations_update_ip');
 add_action('wp_ajax_siren_test_ip', 'siren_operations_test_ip');
+add_action('wp_ajax_siren_initialize_captcha', 'siren_operations_initialize_captcha');
+
+function siren_operations_initialize_captcha()
+{
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => '你没有初始化验证码表的权限。'), 403);
+    }
+    if (!check_ajax_referer('siren-initialize-captcha', 'nonce', false)) {
+        wp_send_json_error(array('message' => '页面验证已过期，请刷新后重试。'), 403);
+    }
+    $result = siren_captcha_initialize_table();
+    if (is_wp_error($result)) {
+        wp_send_json_error(array('message' => $result->get_error_message()), 500);
+    }
+    wp_send_json_success(array('message' => '验证码表已就绪，已有记录保持不变。'));
+}
 
 function siren_operations_test_ip()
 {

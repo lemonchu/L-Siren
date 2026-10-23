@@ -5,6 +5,33 @@
  */
 defined('ABSPATH') || exit;
 
+function siren_captcha_table_exists()
+{
+    global $wpdb;
+    $table = $wpdb->prefix . 'captcha';
+    return $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))) === $table;
+}
+
+/** Manual setup only. Existing tables and verification records are left intact. */
+function siren_captcha_initialize_table()
+{
+    global $wpdb;
+    if (siren_captcha_table_exists()) {
+        return true;
+    }
+    $collation = $wpdb->get_charset_collate();
+    $created = $wpdb->query($wpdb->prepare("CREATE TABLE IF NOT EXISTS %i (
+        mailuser varchar(255) NOT NULL,
+        lasttime bigint(20) NOT NULL,
+        captcha int(11) NOT NULL,
+        trial int(11) NOT NULL,
+        banned tinyint(1) NOT NULL,
+        UNIQUE KEY mail (mailuser)
+    ) ENGINE=InnoDB $collation", $wpdb->prefix . 'captcha'));
+    return $created === false
+        ? new WP_Error('captcha_initialize', '验证码表创建失败，请检查数据库权限或错误日志。') : true;
+}
+
 function siren_guest_comment_captcha_enabled()
 {
     // Preserve the existing behavior until this new option has been saved.

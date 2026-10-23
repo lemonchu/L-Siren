@@ -1,11 +1,15 @@
 <?php
 add_filter( 'of_sanitize_text', 'sanitize_text_field' );
-function of_sanitize_textarea($input) {
+function of_sanitize_textarea($input, $option = array()) {
+	if (($option['id'] ?? '') === 'amv_sources') {
+		$urls = array_map(static fn($line) => esc_url_raw(trim($line), array('http', 'https')), preg_split('/\R/', $input));
+		return implode("\n", array_filter($urls));
+	}
 	global $allowedposttags;
 	$output = wp_kses( $input, $allowedposttags);
 	return $output;
 }
-add_filter( 'of_sanitize_textarea', 'of_sanitize_textarea' );
+add_filter( 'of_sanitize_textarea', 'of_sanitize_textarea', 10, 2 );
 add_filter( 'of_sanitize_select', 'of_sanitize_enum', 10, 2);
 add_filter( 'of_sanitize_radio', 'of_sanitize_enum', 10, 2);
 add_filter( 'of_sanitize_images', 'of_sanitize_enum', 10, 2);

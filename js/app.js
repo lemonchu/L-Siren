@@ -183,7 +183,7 @@ var home = location.href,
         mathQueue: Promise.resolve(),
 
         // MathJax 由插件加载；将动态内容排版串行执行。
-        typesetMath: function(elements){
+        typesetMath: function(elements, reset){
             if (!window.MathJax || !MathJax.startup) return;
             Siren.mathQueue = Siren.mathQueue
                 .then(function(){ return MathJax.startup.promise; })
@@ -192,6 +192,8 @@ var home = location.href,
                         return element.nodeType === 1 && element.isConnected;
                     });
                     if (current.length) {
+                        // 整页切换后重新编号；等上一轮排版结束再清理 TeX 标签。
+                        if (reset && MathJax.texReset) MathJax.texReset();
                         return MathJax.typesetPromise(current).then(function(){
                             Siren.rememberMath(current);
                         });
@@ -285,15 +287,13 @@ var home = location.href,
         },
         addsource: function(){
             Siren.resetVideo();
-            var names = Poi.movies.name.split(',').map(function(name){ return name.trim(); }).filter(Boolean);
-            if (!names.length || !Poi.movies.url) {
-                Siren.resetVideo('请先设置视频地址和名称');
+            var sources = Poi.movies.sources;
+            if (!sources.length) {
+                Siren.resetVideo('请先设置视频列表');
                 return;
             }
-            var name = names[Math.floor(Math.random() * names.length)],
-                source = new URL(Poi.movies.url.replace(/\/+$/, '') + '/' + name, location.href);
-            // 兼容旧设置：无扩展名的视频默认使用 MP4。
-            if (!/\.(mp4|m3u8)$/i.test(source.pathname)) source.pathname += '.mp4';
+            var source = new URL(sources[Math.floor(Math.random() * sources.length)], location.href),
+                isHls = /\.m3u8$/i.test(source.pathname) || source.searchParams.get('action') === 'siren_cloud_video_play';
             $('#video-btn').removeClass('loadvideo').addClass('videolive').hide();
             $('.video-stu').text('正在载入视频 ...').css({"bottom":"0px"});
             s.oncanplay = function(){
@@ -306,7 +306,7 @@ var home = location.href,
                     $('.video-stu').text('已暂停 ...').css({"bottom":"0px"});
                 }
             };
-            if (/\.m3u8$/i.test(source.pathname)) {
+            if (isHls) {
                 if (window.Hls && Hls.isSupported()) {
                     Siren.hls = new Hls();
                     Siren.hls.on(Hls.Events.ERROR, function(event, data){
@@ -395,8 +395,13 @@ var home = location.href,
             // 归档页
             $('.archives').hide();
             $('.archives:first').show();
-            $('#archives-temp h3').click(function() {
-                $(this).next().slideToggle('fast');
+            $('#archives-temp h3').each(function() {
+                $(this).find('button').attr('aria-expanded', String($(this).next('.archives').is(':visible')));
+            }).off('click.sirenArchives').on('click.sirenArchives', function() {
+                var entries = $(this).next('.archives').stop(true, true);
+                var expanded = !entries.is(':visible');
+                entries.slideToggle('fast');
+                $(this).find('button').attr('aria-expanded', String(expanded));
                 return false;
             });
 
@@ -672,7 +677,7 @@ var home = location.href,
             if (Poi.laziness_img == 'open') { lazinessImg() } // 重载图片懒加载
             if (Poi.code_pjax == 'prism') { Prism.highlightAll() } // 重载 PRISM.JS 代码高亮
             if (Poi.code_pjax == 'highlight') { highlight_pjax() } // 重载 HIGHLIGHT.JS 代码高亮
-            Siren.typesetMath($('#page').children().toArray());
+            Siren.typesetMath($('#page').children().toArray(), true);
         }
 
     }

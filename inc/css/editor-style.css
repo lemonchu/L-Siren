@@ -1,0 +1,92 @@
+/* H-Siren content styles. WordPress scopes these to the editing canvas. */
+body {
+    color: #404040;
+    background: #fff;
+    font-family: "Microsoft JhengHei", miranafont, "Hiragino Sans GB", STXihei, "Microsoft YaHei", SimSun, sans-serif;
+    font-size: 16.8px;
+    line-height: 1.8;
+}
+
+.editor-post-title__input {
+    font-size: 24px;
+    font-weight: 300;
+}
+
+p {
+    margin-block: 0;
+    padding: 18px 0;
+    line-height: 30px;
+    font-weight: 400;
+}
+
+h1:not(.editor-post-title__input),
+h2,
+h3,
+h4,
+h5,
+h6 {
+    box-sizing: border-box;
+    color: #737373;
+    padding: 8px 35px;
+    border-radius: 5px;
+    border-bottom: 1px dashed #ddd;
+    box-shadow: 0 2px 3px rgb(0 0 0 / 30%);
+    text-align: center;
+    line-height: 1.5;
+}
+
+h1:not(.editor-post-title__input) { background: rgb(255 154 154 / 50%); }
+h2 { background: rgb(255 246 181 / 50%); }
+h3 { background: rgb(200 230 251 / 50%); }
+h4 { background: rgb(130 239 219 / 50%); border-left: 5px solid #80ff5e; }
+h5 { background: rgb(236 198 255 / 50%); border-left: 5px solid #ffdf7f; }
+h6 { background: rgb(249 249 249 / 50%); border-left: 5px solid #878cfb; }
+
+a { color: #e67474; }
+a:hover { color: #72c5a6; }
+
+blockquote {
+    margin-block: 0;
+    padding: 0 20px;
+    border-left: 4px solid #ddd;
+    border-radius: 5px;
+    background: #f9f9f9;
+    color: #797979;
+}
+
+blockquote p {
+    margin: 5px 0;
+    padding: 0;
+    font-style: italic;
+}
+
+ul,
+ol {
+    padding: 15px 30px;
+    color: #616161;
+}
+
+li {
+    padding: 8px 0;
+}
+
+pre {
+    padding: 1.6em;
+    border-radius: 5px;
+    background: #f8f8f8;
+    color: #000;
+    overflow: auto;
+    line-height: 1.6;
+}
+
+code,
+kbd {
+    font-family: Monaco, Consolas, "Andale Mono", "DejaVu Sans Mono", monospace;
+    overflow-wrap: anywhere;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 5px;
+}

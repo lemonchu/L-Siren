@@ -693,9 +693,37 @@ function siren_private_message_hook($comment_content, $comment)
 
 add_filter('get_comment_text', 'siren_private_message_hook', 10, 2);
 
+// REST 不使用旧的访客邮箱 Cookie 鉴权，只向有评论编辑权限的用户提供原文。
+function siren_private_comment_rest_response($response, $comment)
+{
+    if (!get_comment_meta($comment->comment_ID, '_private', true) ||
+        current_user_can('edit_comment', $comment->comment_ID)) {
+        return $response;
+    }
+
+    $data = $response->get_data();
+    if (isset($data['content'])) {
+        $data['content']['rendered'] = '「 该评论为私密评论 」';
+        unset($data['content']['raw']);
+        $response->set_data($data);
+    }
+    return $response;
+}
+
+add_filter('rest_prepare_comment', 'siren_private_comment_rest_response', 10, 2);
+
+function siren_check_private_comment_enabled()
+{
+    if (!empty($_POST['is-private']) && !akina_option('open_private_message')) {
+        siren_ajax_comment_err('私密评论已关闭，请取消勾选后重新提交');
+    }
+}
+
+add_action('pre_comment_on_post', 'siren_check_private_comment_enabled');
+
 function siren_mark_private_message($comment_id)
 {
-    if ($_POST['is-private']) {
+    if (akina_option('open_private_message') && !empty($_POST['is-private'])) {
         update_comment_meta($comment_id, '_private', 'true');
     }
 }
