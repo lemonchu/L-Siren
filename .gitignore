@@ -2,8 +2,8 @@
 /AGENTS.md
 /DEVELOPMENT_LOG.md
 
-# Local credentials (meting/api.php currently contains account cookies)
-/meting/api.php
+# Local music credentials
+/meting/config.php
 .env
 .env.*
 !.env.example

@@ -55,8 +55,6 @@ function siren_operations_page()
     $icons = array('admin-generic', 'admin-home', 'admin-comments', 'heart', 'flag', 'admin-page', 'admin-users');
     ?>
     <div class="wrap siren-operations">
-        <h1>L-Siren 运维仪表板</h1>
-        <p>维护工具和运行配置，每项单独操作。</p>
         <nav class="nav-tab-wrapper" aria-label="运维分类">
             <?php foreach ($categories as $index => $category) : ?>
                 <a class="nav-tab<?php echo $tab === $index ? ' nav-tab-active' : ''; ?>"
@@ -73,7 +71,6 @@ function siren_operations_page()
                     array('serial' => '尚未生成', 'updated' => '—', 'ipv4' => '—', 'ipv6' => '—');
                 ?>
                 <h2>中国 IP 地址库</h2>
-                <p>从 APNIC 下载最新数据，整理中国 IPv4、IPv6 地址范围，供主题判断访客来源使用。</p>
                 <dl class="siren-ip-status">
                     <?php foreach (array('serial' => 'APNIC 数据日期', 'updated' => '本地更新时间',
                         'ipv4' => 'IPv4 网段', 'ipv6' => 'IPv6 网段') as $key => $label) : ?>
@@ -85,10 +82,10 @@ function siren_operations_page()
                     <label for="siren-ip-proxy">下载代理 <span>（选填，仅本次使用）</span></label>
                     <input type="text" id="siren-ip-proxy" placeholder="http://127.0.0.1:7890"
                         autocomplete="off" spellcheck="false" aria-describedby="siren-ip-proxy-help">
-                    <p class="description" id="siren-ip-proxy-help">填写服务器能连接的 HTTP、HTTPS 或 SOCKS5 代理地址，留空不指定代理。这里的 127.0.0.1 指网站服务器。</p>
+                    <p class="description" id="siren-ip-proxy-help">支持 HTTP、HTTPS 或 SOCKS5 代理，留空不使用。127.0.0.1 指网站服务器。</p>
                 </div>
                 <button type="button" class="button button-primary" id="siren-update-ip">更新 IP 库</button>
-                <p class="description">只在点击时更新。更新期间继续使用旧库，成功后自动替换；也可以通过 SSH 运行 get_latest.sh。</p>
+                <p class="description">更新期间使用旧库，成功后替换。SSH 更新请运行 iplib2/get_latest.sh。</p>
                 <div id="siren-ip-result" class="siren-operation-result" hidden>
                     <div class="siren-operation-message" role="status" aria-live="polite" aria-atomic="true">
                         <span class="spinner" aria-hidden="true"></span><span id="siren-ip-message"></span>
@@ -97,7 +94,7 @@ function siren_operations_page()
                 </div>
                 <form id="siren-test-ip-form" class="siren-ip-test">
                     <h2><label for="siren-test-ip-address">测试 IP</label></h2>
-                    <p class="description" id="siren-test-ip-help">查询当前本地库，支持 IPv4、IPv6。这里只判断 IP 范围，不检查浏览器语言。</p>
+                    <p class="description" id="siren-test-ip-help">支持 IPv4、IPv6，仅查询 IP 库，不检查浏览器语言。</p>
                     <div class="siren-ip-test-controls">
                         <input type="text" id="siren-test-ip-address" name="ip" placeholder="例如：223.5.5.5 或 2400:3200::1"
                             required autocomplete="off" spellcheck="false" aria-describedby="siren-test-ip-help">
@@ -109,17 +106,15 @@ function siren_operations_page()
                 <?php siren_operations_cloud_video(); ?>
             <?php elseif ($tab === 2) : $table_exists = siren_captcha_table_exists(); ?>
                 <h2>评论邮箱验证码</h2>
-                <p>首次使用时，创建验证码所需的数据表。已有表不会清空或修改。</p>
                 <dl class="siren-ip-status">
                     <div><dt>数据表</dt><dd><?php echo esc_html($wpdb->prefix . 'captcha'); ?></dd></div>
                     <div><dt>状态</dt><dd id="siren-captcha-table-status"><?php echo $table_exists ? '已存在' : '尚未创建'; ?></dd></div>
                 </dl>
                 <button type="button" class="button button-primary" id="siren-initialize-captcha" <?php disabled($table_exists); ?>>初始化验证码表</button>
-                <p class="description"><?php echo $table_exists ? '验证码表已存在，无需初始化。' : '建表后还需要配置邮件服务，访客才能收到验证码。'; ?></p>
+                <p class="description">初始化不会清空已有记录，发送验证码需配置邮件服务。</p>
                 <div id="siren-captcha-result" class="siren-operation-result" role="status" aria-live="polite" aria-atomic="true" hidden></div>
             <?php else : ?>
-                <h2><?php echo esc_html($categories[$tab]['name']); ?></h2>
-                <p>这里暂时没有运维操作。</p>
+                <p>暂无操作。</p>
             <?php endif; ?>
         </section>
     </div>
@@ -142,7 +137,7 @@ function siren_operations_initialize_captcha()
     if (is_wp_error($result)) {
         wp_send_json_error(array('message' => $result->get_error_message()), 500);
     }
-    wp_send_json_success(array('message' => '验证码表已就绪，已有记录保持不变。'));
+    wp_send_json_success(array('message' => '验证码表初始化完成。'));
 }
 
 function siren_operations_test_ip()

@@ -319,11 +319,12 @@ function siren_video_sources(): array
 function akina_scripts()
 {
     wp_enqueue_style('siren', get_stylesheet_uri(), array(), SIREN_VERSION);
-    wp_enqueue_script('jq', 'https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js', array(), SIREN_VERSION, true);
-    wp_enqueue_script('pjax-libs', get_template_directory_uri() . '/js/jquery.pjax.js', array(), SIREN_VERSION, true);
+    wp_enqueue_script('jq', 'https://unpkg.com/jquery@2.2.4/dist/jquery.min.js', array('jquery'), SIREN_VERSION, true);
+    $pjax_url = add_query_arg('v', filemtime(get_template_directory() . '/js/jquery.pjax.js'), get_template_directory_uri() . '/js/jquery.pjax.js');
+    wp_enqueue_script('pjax-libs', $pjax_url, array('jq'), null, true);
     wp_enqueue_script('input', get_template_directory_uri() . '/js/input.min.js', array(), SIREN_VERSION, true);
     $app_url = add_query_arg('v', filemtime(get_template_directory() . '/js/app.js'), get_template_directory_uri() . '/js/app.js');
-    wp_enqueue_script('app', $app_url, array('jq'), null, true);
+    wp_enqueue_script('app', $app_url, array('jq', 'pjax-libs', 'input'), null, true);
     $mv_live = akina_option('focus_mvlive') ? 'open' : 'close';
     $movies = akina_option('focus_amv') ? array('sources' => siren_video_sources(), 'live' => $mv_live) : 'close';
     $auto_height = akina_option('focus_height') ? 'fixed' : 'auto';
@@ -453,12 +454,9 @@ function restyle_text($number)
 
 function set_post_views()
 {
-    global $post;
-    $post_id = intval($post->ID);
-    $count_key = 'views';
-    $views = get_post_custom($post_id);
-    $views = intval($views['views'][0]);
     if (is_single() || is_page()) {
+        $post_id = get_queried_object_id();
+        $views = (int) get_post_meta($post_id, 'views', true);
         if (!update_post_meta($post_id, 'views', ($views + 1))) {
             add_post_meta($post_id, 'views', 1, true);
         }
@@ -469,15 +467,7 @@ add_action('get_header', 'set_post_views');
 
 function get_post_views($post_id)
 {
-    $count_key = 'views';
-    $views = get_post_custom($post_id);
-    $views = intval($views['views'][0]);
-    $post_views = intval(post_custom('views'));
-    if ($views == '') {
-        return 0;
-    } else {
-        return restyle_text($views);
-    }
+    return restyle_text((int) get_post_meta($post_id, 'views', true));
 }
 
 /**
@@ -634,12 +624,26 @@ function akina_infinite_scroll_render()
 /**
  * 编辑器下载按钮
  */
-function download($atts, $content = null)
+function siren_download_button($content, $label)
 {
-    return '<a class="download" href="' . $content . '" rel="external" target="_blank" title="下载地址"><span><i class="iconfont down">&#xe69f;</i>Download</span></a>' ;
+    $url = esc_url(trim(recode($content)));
+    if ($url === '') {
+        return '';
+    }
+    return '<a class="download" href="' . $url . '" rel="external noopener" target="_blank" title="下载地址"><span><i class="iconfont down">&#xe69f;</i>' . esc_html($label) . '</span></a>';
 }
 
-add_shortcode("download", "download");
+function download($atts, $content = null)
+{
+    return siren_download_button($content, 'Download');
+}
+add_shortcode('download', 'download');
+
+function backup($atts, $content = null)
+{
+    return siren_download_button($content, 'Backup');
+}
+add_shortcode('backup', 'backup');
 
 function bolo_after_wp_tiny_mce($mce_settings)
 { ?>
@@ -742,7 +746,6 @@ add_action('comment_post', 'comment_mail_notify');
  */
 function sig_allowed_html_tags_in_comments()
 {
-    define('CUSTOM_TAGS', true);
     global $allowedtags;
     $allowedtags = array(
         'a' => array(
@@ -867,41 +870,59 @@ if (version_compare($wp_version, '5.1.1', '>=')) {
     }
 }
 
+// 登录可见的隐藏内容。
+function login_visible($atts, $content = null)
+{
+    if (!is_user_logged_in() || is_feed() || $content === null) {
+        return '<p style="text-align: center;">此隐藏内容需要登录才可见哦</p>';
+    }
+    return recode($content);
+}
+add_shortcode('hide', 'login_visible');
+
 // Registration and comment email verification.
 require_once get_template_directory() . '/inc/captcha.php';
+add_filter('comment_form_field_cookies', '__return_empty_string');
 
-/**
- * 递归处理所有内部短代码
- */
-function recode($content){
-	$recode_l = do_shortcode($content);
-	$recode_f = $content;
-	while($recode_l != $recode_f){
-		$recode_f = $recode_l;
-		$recode_l = do_shortcode($content);
-	}
-	return $recode_l;
+// 解析内部短代码，嵌套内容由各短代码回调处理。
+function recode($content)
+{
+    return do_shortcode($content ?? '');
 }
 
-// 显示中国内容的短代码
-function cn_content($atts, $content = null) {
-    if (is_china()) {
-        return recode($content);
-    }
-    return "";
+/**
+ * 随机图API
+ */
+add_action('wp_ajax_nopriv_randimg', 'get_rd_bg_url');
+add_action('wp_ajax_randimg', 'get_rd_bg_url');
+function get_rd_bg_url(){
+	echo get_random_bg_url();
+	wp_die();
+}
+add_action('wp_ajax_nopriv_yzimg', 'get_rd_bg_url_hd');
+add_action('wp_ajax_yzimg', 'get_rd_bg_url_hd');
+function get_rd_bg_url_hd(){
+	wp_redirect(get_random_bg_url());
+	exit;
+}
+
+// 按访客区域显示内容。
+function cn_content($atts, $content = null)
+{
+    return is_china() ? recode($content) : '';
 }
 add_shortcode('china', 'cn_content');
 
-function ab_content($atts, $content = null) {
-    if (!is_china()) {
-        return recode($content);
-    }
-    return "";
+function ab_content($atts, $content = null)
+{
+    return is_china() ? '' : recode($content);
 }
 add_shortcode('abroad', 'ab_content');
 
-// 判断是否是中国用户：保留语言条件，统一查询本地 IPv4/IPv6 地址库。
+// 保留语言条件和本地 IP 库判断，每次请求只计算一次。
 require_once get_template_directory() . '/inc/ip-location.php';
-function is_china() {
-    return siren_visitor_is_china($_SERVER);
+function is_china()
+{
+    static $china = null;
+    return $china ??= siren_visitor_is_china($_SERVER);
 }

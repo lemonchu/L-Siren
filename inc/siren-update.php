@@ -66,7 +66,7 @@ function get_meme()
  */
 function bgvideo()
 {
-    if (!akina_option('focus_amv') || akina_option('focus_height')) $dis = 'display:none;';
+    $dis = (!akina_option('focus_amv') || akina_option('focus_height')) ? 'display:none;' : '';
     $html = '<div id="video-container" style="' . $dis . '">';
     $html .= '<video id="bgvideo" class="video" video-name="" src="" width="auto" preload="auto" playsinline></video>';
     $html .= '<div id="video-btn" class="loadvideo videolive"></div>';
@@ -84,10 +84,7 @@ function get_avatar_profile_url($id)
 {
     $author_img = get_avatar($id);
     $imgtag = '/<img.*?src=(["\'])(.+?)\1.*?>/i';
-    if(preg_match($imgtag, $author_img, $imgurl)){
-        $avatar = $imgurl[2];
-    }
-    return $avatar;
+    return preg_match($imgtag, $author_img, $imgurl) ? $imgurl[2] : '';
 }
 
 
@@ -195,24 +192,22 @@ if (version_compare($GLOBALS['wp_version'], '4.4-alpha', '<')) {
 
 // 错误提示
 if (!function_exists('siren_ajax_comment_err')) {
-    function siren_ajax_comment_err($t)
+    function siren_ajax_comment_err($t, $status = 400)
     {
-        header('HTTP/1.0 500 Internal Server Error');
         header('Content-Type: text/plain;charset=UTF-8');
-        echo $t;
-        exit;
+        wp_die($t, '', array('response' => $status));
     }
 }
 
 // 机器评论验证
 function siren_robot_comment()
 {
-    if (!$_POST['no-robot'] && !is_user_logged_in()) {
+    if (akina_option('norobot') && !is_user_logged_in() && empty($_POST['no-robot'])) {
         siren_ajax_comment_err('上车请打卡。');
     }
 }
+add_action('pre_comment_on_post', 'siren_robot_comment');
 
-if (akina_option('norobot')) add_action('pre_comment_on_post', 'siren_robot_comment');
 
 // 纯英文评论拦截
 function scp_comment_post($incoming_comment)
@@ -233,12 +228,9 @@ if (!function_exists('siren_ajax_comment_callback')) {
     {
         $comment = wp_handle_comment_submission(wp_unslash($_POST));
         if (is_wp_error($comment)) {
-            $data = $comment->get_error_data();
-            if (!empty($data)) {
-                siren_ajax_comment_err($comment->get_error_message());
-            } else {
-                exit;
-            }
+            $status = $comment->get_error_data();
+            siren_ajax_comment_err($comment->get_error_message() ?: '评论提交失败，请稍后重试。',
+                is_int($status) && $status >= 400 && $status < 600 ? $status : 400);
         }
         $user = wp_get_current_user();
         do_action('set_comment_cookies', $comment, $user);
@@ -332,7 +324,7 @@ function Exuser_center()
 function login_ok()
 {
     global $current_user;
-    get_currentuserinfo();
+    $current_user = wp_get_current_user();
     ?>
     <p class="ex-login-avatar">
         <a href="http://cn.gravatar.com/" title="更换头像" target="_blank" rel="nofollow"><?php echo get_avatar($current_user->user_email, '110'); ?></a>
@@ -411,7 +403,7 @@ function the_headPattern()
 function header_user_menu()
 {
     global $current_user ;
-    get_currentuserinfo();
+    $current_user = wp_get_current_user();
     if (is_user_logged_in()) {
         $ava = get_avatar_profile_url($current_user->user_email);
         ?>
@@ -457,7 +449,7 @@ function header_user_menu()
 function mobile_user_menu()
 {
     global $current_user ;
-    get_currentuserinfo();
+    $current_user = wp_get_current_user();
     if (is_user_logged_in()) {
         $ava = get_avatar_profile_url($current_user->user_email);
         ?>
@@ -533,35 +525,35 @@ add_filter('excerpt_length', 'changes_post_excerpt_length', 999);
 add_filter('the_content', 'siren_auto_link_nofollow');
 function siren_auto_link_nofollow($content)
 {
-    $regexp = "<a\s[^>]*href=(\"??)([^\" >]*?)\\1[^>]*>";
-    if (preg_match_all("/$regexp/siU", $content, $matches, PREG_SET_ORDER)) {
-        if (!empty($matches)) {
-            $srcUrl = get_option('siteurl');
-            for ($i = 0; $i < count($matches); $i++) {
-                $tag = $matches[$i][0];
-                $tag2 = $matches[$i][0];
-                $url = $matches[$i][0];
-                $noFollow = '';
-                $pattern = '/target\s*=\s*"\s*_blank\s*"/';
-                preg_match($pattern, $tag2, $match, PREG_OFFSET_CAPTURE);
-                if (count($match) < 1)
-                    $noFollow .= ' target="_blank" ';
-                $pattern = '/rel\s*=\s*"\s*[n|d]ofollow\s*"/';
-                preg_match($pattern, $tag2, $match, PREG_OFFSET_CAPTURE);
-                if (count($match) < 1)
-                    $noFollow .= ' rel="nofollow" ';
-                $pos = strpos($url, $srcUrl);
-                if ($pos === false) {
-                    $tag = rtrim($tag, '>');
-                    $tag .= $noFollow . '>';
-                    $content = str_replace($tag2, $tag, $content);
-                }
-            }
+    $host = wp_parse_url(home_url('/'), PHP_URL_HOST);
+    $html = new WP_HTML_Tag_Processor($content);
+    while ($html->next_tag('A')) {
+        $href = $html->get_attribute('href');
+        if (!is_string($href) || !preg_match('~^(?:https?:)?//~i', trim($href))) {
+            continue;
         }
-    }
+        $url = wp_parse_url(trim($href));
+        if (empty($url['host']) || strcasecmp($url['host'], $host) === 0) {
+            continue;
+        }
 
-    $content = str_replace(']]>', ']]>', $content);
-    return $content;
+        $target = $html->get_attribute('target');
+        if ($target === null) {
+            $target = '_blank';
+            $html->set_attribute('target', $target);
+        }
+        $rel = $html->get_attribute('rel');
+        $rel = is_string($rel) ? preg_split('/\s+/', trim($rel), -1, PREG_SPLIT_NO_EMPTY) : array();
+        $tokens = array_map('strtolower', $rel);
+        if (!in_array('nofollow', $tokens, true) && !in_array('dofollow', $tokens, true)) {
+            $rel[] = 'nofollow';
+        }
+        if (is_string($target) && strcasecmp($target, '_blank') === 0 && !in_array('noopener', $tokens, true)) {
+            $rel[] = 'noopener';
+        }
+        $html->set_attribute('rel', implode(' ', $rel));
+    }
+    return $html->get_updated_html();
 }
 
 // 分类页面全部添加斜杠，利于SEO
@@ -680,13 +672,13 @@ function siren_author_link($link, $author_id, $author_nicename)
 function siren_private_message_hook($comment_content, $comment)
 {
     $comment_ID = $comment->comment_ID;
-    $parent_ID = $comment->comment_parent;
-    $parent_email = get_comment_author_email($parent_ID);
+    $parent = $comment->comment_parent ? get_comment($comment->comment_parent) : null;
+    $parent_email = $parent ? get_comment_author_email($parent) : '';
     $is_private = get_comment_meta($comment_ID, '_private', true);
     $email = $comment->comment_author_email;
     $current_commenter = wp_get_current_commenter();
     if ($is_private) $comment_content = '「 私密评论 」' . $comment_content;
-    if ($current_commenter['comment_author_email'] == $email || $parent_email == $current_commenter['comment_author_email'] || current_user_can('delete_user')) return $comment_content;
+    if ($current_commenter['comment_author_email'] == $email || ($parent_email && $parent_email == $current_commenter['comment_author_email']) || current_user_can('delete_user')) return $comment_content;
     if ($is_private) return '「 该评论为私密评论 」';
     return $comment_content;
 }

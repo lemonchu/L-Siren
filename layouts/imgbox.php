@@ -11,7 +11,7 @@ $bg_style = akina_option('focus_height') ? 'background-position: center center;b
     <div class="focusinfo">
         <?php
         global $current_user ;
-        get_currentuserinfo();
+        $current_user = wp_get_current_user();
         if (is_user_logged_in()) :
             ?>
             <div class="header-tou">

@@ -356,9 +356,7 @@ var home = location.href,
                     var _height = $(window).height();
                     $('#centerbg').css({'height':_height});
                     $('#bgvideo').css({'min-height':_height});
-                    $(window).resize(function(){
-                        Siren.AH();
-                    });
+                    $(window).off('resize.sirenHeight').on('resize.sirenHeight', Siren.AH);
                 }
             }else{
                 $('.headertop').addClass('headertop-bar');
@@ -419,7 +417,7 @@ var home = location.href,
                 $('.js-toggle-search').toggleClass('is-active');
                 $('.js-search').toggleClass('is-visible');
             });
-            $('.search_close').on('click', function () {
+            $('.search_close').off('click.sirenSearch').on('click.sirenSearch', function () {
                 if ($('.js-search').hasClass('is-visible')){
                     $('.js-toggle-search').toggleClass('is-active');
                     $('.js-search').toggleClass('is-visible');
@@ -468,7 +466,6 @@ var home = location.href,
 
         // AJAX加载文章
         XLS: function(){
-            $body=(window.opera)?(document.compatMode=="CSS1Compat"?$('html'):$('body')):$('html,body');
             $('body').on('click', '#pagination a', function(){
                 $(this).addClass("loading").text("");
                 $.ajax({
@@ -501,17 +498,23 @@ var home = location.href,
                 __cancel_text = __cancel.text(),
                 __list = 'commentwrap'; // your comment wrapprer
             jQuery(document).on("submit", "#commentform", function() {
+                var form = this;
                 jQuery.ajax({
                     url: Poi.ajaxurl,
                     data: jQuery(this).serialize() + "&action=ajax_comment",
                     type: jQuery(this).attr('method'),
-                    beforeSend: addComment.createButterbar("提交中...."),
+                    beforeSend: function() {
+                        addComment.createButterbar("提交中....");
+                    },
                     error: function(request) {
+                        if (!form.isConnected) return;
                         var t = addComment;
-                        t.createButterbar(request.responseText);
+                        t.createButterbar(request.responseText || '评论提交失败，请稍后重试');
                     },
                     success: function(data) {
-                        var comment = jQuery(data);
+                        if (!form.isConnected) return;
+                        var comment = jQuery(data),
+                            list = jQuery('#comments .commentwrap').filter('ul, ol').first();
                         jQuery('textarea').each(function() {
                             this.value = ''
                         });
@@ -519,11 +522,11 @@ var home = location.href,
                             cancel = t.I('cancel-comment-reply-link'),
                             temp = t.I('wp-temp-form-div'),
                             respond = t.I(t.respondId),
-                            post = t.I('comment_post_ID').value,
                             parent = t.I('comment_parent').value;
                         if (parent != '0') {
                             jQuery('#respond').before(jQuery('<ol class="children"></ol>').append(comment));
-                        } else if (!jQuery('.' + __list ).length) {
+                        } else if (!list.length) {
+                            jQuery('#comments .notification-hidden').closest('.commentwrap').remove();
                             if (Poi.formpostion == 'bottom') {
                                 jQuery('#respond').before(jQuery('<ol class="' + __list + '"></ol>').append(comment));
                             } else {
@@ -532,9 +535,9 @@ var home = location.href,
 
                         } else {
                             if (Poi.order == 'asc') {
-                                jQuery('.' + __list ).append(comment); // your comments wrapper
+                                list.append(comment);
                             } else {
-                                jQuery('.' + __list ).prepend(comment); // your comments wrapper
+                                list.prepend(comment);
                             }
                         }
                         t.createButterbar("提交成功");
@@ -603,38 +606,53 @@ var home = location.href,
                 },
                 createButterbar: function(message) {
                     var t = this;
+                    clearTimeout(t.butterbarTimer);
                     t.clearButterbar();
                     jQuery("body").append('<div class="butterBar butterBar--center"><p class="butterBar-message">' + message + '</p></div>');
-                    setTimeout("jQuery('.butterBar').remove()", 3000);
+                    t.butterbarTimer = setTimeout(t.clearButterbar, 3000);
                 }
             };
         },
 
         // AJAX评论分页
         XCP: function(){
-            $body=(window.opera)?(document.compatMode=="CSS1Compat"?$('html'):$('body')):$('html,body');
+            var loading;
             $('body').on('click', '#comments-navi a', function(e){
                 e.preventDefault();
+                var section = $(this).closest('#comments'),
+                    loader = section.find('#loading-comments');
+                if (loading === section[0]) return;
+                loading = section[0];
+                loader.slideDown();
                 $.ajax({
                     type: "GET",
                     url: $(this).attr('href'),
-                    beforeSend: function(){
-                        Siren.clearMath($('ul.commentwrap').toArray());
-                        $('#comments-navi').remove();
-                        $('ul.commentwrap').remove();
-                        $('#loading-comments').slideDown();
-                        $body.animate({scrollTop: $('#comments-list-title').offset().top - 65}, 800 );
-                    },
                     dataType: "html",
+                    timeout: 15000,
+                    complete: function(){
+                        if (loading === section[0]) loading = null;
+                        loader.slideUp('fast');
+                    },
+                    error: function(){
+                        if (section[0].isConnected) addComment.createButterbar('评论加载失败，请稍后重试');
+                    },
                     success: function(out){
-                        result = $(out).find('ul.commentwrap');
-                        nextlink = $(out).find('#comments-navi');
-                        $('#loading-comments').slideUp('fast');
-                        $('#loading-comments').after(result.fadeIn(500));
-                        $('ul.commentwrap').after(nextlink);
-                        if (Poi.code_pjax == 'prism') { Prism.highlightAll() } // 重载 PRISM.JS 代码高亮
-                        if (Poi.code_pjax == 'highlight') { highlight_pjax() } // 重载 HIGHLIGHT.JS 代码高亮
-                        Siren.typesetMath(result.toArray());
+                        if (!section[0].isConnected) return;
+                        var page = $(out),
+                            comments = page.find('ul.commentwrap').first(),
+                            navigation = page.find('#comments-navi');
+                        if (!comments.length) {
+                            addComment.createButterbar('评论加载失败，请稍后重试');
+                            return;
+                        }
+                        Siren.clearMath(section.find('ul.commentwrap, ol.commentwrap').toArray());
+                        section.find('ul.commentwrap, ol.commentwrap, #comments-navi').remove();
+                        loader.after(comments.hide().fadeIn(500));
+                        comments.after(navigation);
+                        $('html, body').animate({scrollTop: $('#comments-list-title').offset().top - 65}, 800);
+                        if (Poi.code_pjax == 'prism') { Prism.highlightAll() }
+                        if (Poi.code_pjax == 'highlight') { highlight_pjax() }
+                        Siren.typesetMath(comments.toArray());
                     }
                 });
             });
@@ -886,14 +904,14 @@ function highlight_pjax() {
 // 网站标题自动判断
 function window_title() {
     var OriginTitile = document.title;
-    var titleTime;
-    document.addEventListener('visibilitychange', function () {
+    clearTimeout(window_title.timer);
+    $(document).off('visibilitychange.sirenTitle').on('visibilitychange.sirenTitle', function () {
         if (document.hidden) {
             document.title = title.blur;
-            clearTimeout(titleTime);
+            clearTimeout(window_title.timer);
         } else {
             document.title = title.focus;
-            titleTime = setTimeout(function () {
+            window_title.timer = setTimeout(function () {
                 document.title = OriginTitile;
             }, 2000);
         }
