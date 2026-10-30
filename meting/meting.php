@@ -107,7 +107,7 @@ class Meting
         curl_setopt($curl, CURLOPT_ENCODING, 'gzip');
         curl_setopt($curl, CURLOPT_IPRESOLVE, 1);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
         curl_setopt($curl, CURLOPT_URL, $url);
         curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
@@ -161,7 +161,7 @@ class Meting
             case 'netease':
             $api = array(
                 'method' => 'POST',
-                'url'    => 'http://music.163.com/api/cloudsearch/pc',
+                'url'    => 'https://music.163.com/api/cloudsearch/pc',
                 'body'   => array(
                     's'      => $keyword,
                     'type'   => isset($option['type']) ? $option['type'] : 1,
@@ -269,7 +269,7 @@ class Meting
             case 'netease':
             $api = array(
                 'method' => 'POST',
-                'url'    => 'http://music.163.com/api/v3/song/detail/',
+                'url'    => 'https://music.163.com/api/v3/song/detail/',
                 'body'   => array(
                     'c' => '[{"id":'.$id.',"v":0}]',
                 ),
@@ -353,7 +353,7 @@ class Meting
             case 'netease':
             $api = array(
                 'method' => 'POST',
-                'url'    => 'http://music.163.com/api/v1/album/'.$id,
+                'url'    => 'https://music.163.com/api/v1/album/'.$id,
                 'body'   => array(
                     'total'         => 'true',
                     'offset'        => '0',
@@ -446,7 +446,7 @@ class Meting
             case 'netease':
             $api = array(
                 'method' => 'POST',
-                'url'    => 'http://music.163.com/api/v1/artist/'.$id,
+                'url'    => 'https://music.163.com/api/v1/artist/'.$id,
                 'body'   => array(
                     'ext'           => 'true',
                     'private_cloud' => 'true',
@@ -547,7 +547,7 @@ class Meting
             case 'netease':
             $api = array(
                 'method' => 'POST',
-                'url'    => 'http://music.163.com/api/v6/playlist/detail',
+                'url'    => 'https://music.163.com/api/v6/playlist/detail',
                 'body'   => array(
                     's'  => '0',
                     'id' => $id,
@@ -643,7 +643,7 @@ class Meting
             case 'netease':
             $api = array(
                 'method' => 'POST',
-                'url'    => 'http://music.163.com/api/song/enhance/player/url',
+                'url'    => 'https://music.163.com/api/song/enhance/player/url',
                 'body'   => array(
                     'ids' => array($id),
                     'br'  => $br * 1000,
@@ -743,7 +743,7 @@ class Meting
             case 'netease':
             $api = array(
                 'method' => 'POST',
-                'url'    => 'http://music.163.com/api/song/lyric',
+                'url'    => 'https://music.163.com/api/song/lyric',
                 'body'   => array(
                     'id' => $id,
                     'os' => 'linux',
