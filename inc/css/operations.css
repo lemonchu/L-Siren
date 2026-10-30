@@ -1,0 +1,177 @@
+.siren-operations {
+    --siren-operations-blue: #3566a8;
+    max-width: 1140px;
+    margin: 28px auto 0;
+    padding: 0 20px;
+}
+.siren-operations .nav-tab-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 28px;
+    padding: 0 12px;
+    border: 0;
+}
+.siren-operations .nav-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    float: none;
+    margin: 0;
+    padding: 20px 24px;
+    border: 0;
+    border-radius: 4px 4px 0 0;
+    background: transparent;
+    color: var(--siren-operations-blue);
+    font-size: 17px;
+    font-weight: 400;
+}
+.siren-operations .nav-tab:hover,
+.siren-operations .nav-tab-active {
+    background: #fff;
+    color: #244a7c;
+}
+.siren-operations .nav-tab:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--siren-operations-blue);
+}
+.siren-operations-panel {
+    padding: clamp(24px, 4vw, 64px);
+    background: #fbfbfb;
+    border: 1px solid #fff;
+    border-radius: 4px;
+}
+.siren-operations-panel h2 {
+    margin: 0 0 22px;
+    color: #455e8c;
+    font-size: 20px;
+}
+.siren-operations-panel > p {
+    color: #646970;
+    font-size: 14px;
+    line-height: 1.8;
+}
+.siren-ip-status {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin: 28px 0;
+    padding-bottom: 28px;
+    border-bottom: 1px solid #e8e8e8;
+}
+.siren-ip-status dt {
+    color: #646970;
+}
+.siren-ip-status dd {
+    margin: 6px 0 0;
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+}
+.siren-operations .description {
+    margin-top: 12px;
+}
+.siren-download-proxy {
+    margin: 0 0 24px;
+}
+.siren-download-proxy label {
+    display: block;
+    margin-bottom: 12px;
+    color: #455e8c;
+    font-size: 15px;
+    font-weight: 600;
+}
+.siren-download-proxy label span {
+    color: #646970;
+    font-size: 13px;
+    font-weight: 400;
+}
+.siren-download-proxy input {
+    width: 100%;
+    max-width: 600px;
+    padding: 8px 12px;
+}
+.siren-operations .button-primary {
+    padding: 5px 20px;
+    border-color: var(--siren-operations-blue);
+    background: var(--siren-operations-blue);
+}
+.siren-operations .button-primary:hover {
+    border-color: #244a7c;
+    background: #244a7c;
+}
+.siren-operation-result {
+    margin-top: 20px;
+    padding: 14px 16px;
+    background: #f0f6fc;
+    border-left: 4px solid #2271b1;
+}
+.siren-operation-result[data-state="success"] {
+    background: #edfaef;
+    border-color: #00a32a;
+}
+.siren-operation-result[data-state="error"] {
+    background: #fcf0f1;
+    border-color: #d63638;
+}
+.siren-operation-message {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.siren-operation-result .spinner {
+    display: none;
+    float: none;
+    flex-shrink: 0;
+    margin: 0;
+}
+.siren-operation-result .spinner.is-active {
+    display: block;
+}
+.siren-operation-result p {
+    margin-bottom: 0;
+}
+.siren-ip-test {
+    margin-top: 32px;
+    padding-top: 32px;
+    border-top: 1px solid #e8e8e8;
+}
+.siren-ip-test-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+}
+.siren-ip-test-controls input {
+    flex: 1 1 260px;
+    min-width: 0;
+    max-width: 600px;
+    padding: 8px 12px;
+}
+.siren-cloud-video-links {
+    margin-top: 32px;
+    padding-top: 32px;
+    border-top: 1px solid #e8e8e8;
+}
+.siren-cloud-video .form-table th {
+    width: 140px;
+}
+.siren-cloud-video-entry {
+    margin: 24px 0;
+}
+@media (max-width: 600px) {
+    .siren-operations {
+        margin-top: 20px;
+        padding: 0;
+    }
+    .siren-operations .nav-tab-wrapper {
+        justify-content: flex-start;
+        padding: 0;
+    }
+    .siren-operations .nav-tab {
+        padding: 12px;
+        font-size: 14px;
+    }
+    .siren-operations-panel {
+        padding: 20px;
+    }
+}

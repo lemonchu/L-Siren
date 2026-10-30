@@ -12,6 +12,7 @@
 </div><!-- #content -->
 <?php comments_template('', true); ?>
 </div><!-- #page pjax container-->
+<div id="poi-play-bar"></div>
 <?php if (akina_option('live2d_s') != '0') { ?>
     <div id="landlord">
         <div class="message" style="opacity:0"></div>
@@ -139,5 +140,6 @@
         }
     </script>
 <?php } ?>
+<script src="https://www.lemonpig.cn/wp-content/themes/H-Siren/playlist.js?ver=<?php echo esc_attr(filemtime(get_template_directory() . '/playlist.js')); ?>"></script>
 </body>
 </html>

@@ -403,19 +403,12 @@ function optionsframework_options()
     );
 
     $options[] = array(
-        'name' => __('视频地址', 'options_framework_theme'),
-        'desc' => __('视频的来源地址，该地址拼接下方的视频名称，地址尾部不需要加斜杠，比如“https://1.cn/MV.mp4”，只需要填写“https://1.cn”，这个地址是固定的', 'options_framework_theme'),
-        'id' => 'amv_url',
-        'std' => '',
-        'type' => 'text'
-    );
-
-    $options[] = array(
-        'name' => __('视频名称', 'options_framework_theme'),
-        'desc' => __('仅支持MP4格式，比如“https://1.cn/MV.mp4”，只需要填写视频文件名“MV”即可，多个视频用英文逗号隔开如“MV,AV”，无需在意顺序，因为加载是随机的', 'options_framework_theme'),
-        'id' => 'amv_title',
-        'std' => '',
-        'type' => 'text'
+        'name' => __('视频列表', 'options_framework_theme'),
+        'desc' => __('每行一个完整地址，可以混用 MP4、m3u8 和本站视频 API，播放时随机选择。移动云盘的固定播放地址在“运维仪表板 → 第一屏”复制。', 'options_framework_theme'),
+        'id' => 'amv_sources',
+        'std' => akina_option('amv_sources', null) === null ? implode("\n", siren_video_sources()) : '',
+        'type' => 'textarea',
+        'settings' => array('rows' => 5)
     );
 
     $options[] = array(
@@ -451,6 +444,18 @@ function optionsframework_options()
     $options[] = array(
         'name' => __('文章页', 'options_framework_theme'),
         'type' => 'heading'
+    );
+
+    $options[] = array(
+        'name' => __('访客评论验证码', 'options_framework_theme'),
+        'desc' => __('用于验证未登录评论者的邮箱。开启后，访客需获取邮件中的 6 位验证码才能发表评论；已登录用户无需验证。默认开启。', 'options_framework_theme'),
+        'id' => 'guest_comment_captcha',
+        'std' => 'yes',
+        'type' => 'radio',
+        'options' => array(
+            'yes' => __('开启', 'options_framework_theme'),
+            'no' => __('关闭', 'options_framework_theme')
+        )
     );
 
     $options[] = array(
@@ -881,7 +886,7 @@ function optionsframework_options()
 
     $options[] = array(
         'name' => __('允许私密评论', 'options_framework_theme'),
-        'desc' => __('默认关闭，勾选开启，允许用户设置自己的评论对其他人不可见', 'options_framework_theme'),
+        'desc' => __('默认关闭，勾选后允许发表私密评论。关闭后不影响已有私密评论，其内容仍按阅读权限显示。', 'options_framework_theme'),
         'id' => 'open_private_message',
         'std' => '0',
         'type' => 'checkbox'

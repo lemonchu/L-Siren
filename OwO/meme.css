@@ -76,6 +76,35 @@
     border: 1px solid #f4a7b9;
 }
 
+/* Match the emoji controls, whose parent sets line-height: 1. */
+#commentform .comment-captcha-button {
+    -webkit-appearance: none;
+    appearance: none;
+    font: inherit;
+    line-height: 1;
+    background: transparent;
+    box-shadow: none;
+    transition: border-color .15s ease, color .15s ease;
+}
+
+#commentform .comment-captcha-button:hover,
+#commentform .comment-captcha-button:focus-visible {
+    color: #535a63;
+    border-color: #f4a7b9;
+}
+
+#commentform .comment-captcha-button:focus-visible {
+    outline: 2px solid #f4a7b9;
+    outline-offset: 3px;
+}
+
+/* Keep the six-digit field compact, with space before a wrapped submit button. */
+#commentform #captcha {
+    width: 160px;
+    max-width: calc(100% - 17px);
+    margin: 0 16px 14px 1px;
+}
+
 .meme_btn span {
     font-family: "Microsoft JhengHei", miranafont, "Hiragino Sans GB", STXihei, "Microsoft YaHei", SimSun, Sans-Serif;
 }

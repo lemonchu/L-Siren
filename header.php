@@ -52,7 +52,7 @@
         <meta name="keywords" content="<?php echo $keywords; ?>"/>
     <?php } ?>
     <link rel="shortcut icon" href="<?php bloginfo('template_url'); ?>/images/favicon.ico"/>
-    <link rel="stylesheet" href="<?php bloginfo('template_url'); ?>/OwO/meme.css"/>
+    <link rel="stylesheet" href="<?php bloginfo('template_url'); ?>/OwO/meme.css?ver=<?php echo esc_attr(filemtime(get_template_directory() . '/OwO/meme.css')); ?>"/>
     <?php if (akina_option('live2d_s') != '0') { ?>
         <link rel="stylesheet" href="<?php bloginfo('template_url'); ?>/live2d/css/live2d.css"/>
     <?php } ?>
@@ -75,6 +75,10 @@
             <?php echo akina_option('google_analytics_2'); ?>
         </script>
     <?php } ?>
+    <script src="https://unpkg.com/hls.js@1.7.3/dist/hls.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/aplayer/dist/APlayer.min.css">
+    <link rel="stylesheet" href="https://www.lemonpig.cn/wp-content/themes/H-Siren/aplayer.css?ver=<?php echo esc_attr(filemtime(get_template_directory() . '/aplayer.css')); ?>">
+    <script src="https://unpkg.com/aplayer/dist/APlayer.min.js"></script>
     <!--[if IE]>
     <script type="text/javascript">
         if (!!window.ActiveXObject || "ActiveXObject" in window) {

@@ -179,6 +179,49 @@ var baguetteBox = function() {
 var home = location.href,
     s = $('#bgvideo')[0],
     Siren = {
+        hls: null,
+        mathQueue: Promise.resolve(),
+
+        // MathJax 由插件加载；将动态内容排版串行执行。
+        typesetMath: function(elements, reset){
+            if (!window.MathJax || !MathJax.startup) return;
+            Siren.mathQueue = Siren.mathQueue
+                .then(function(){ return MathJax.startup.promise; })
+                .then(function(){
+                    var current = elements.filter(function(element){
+                        return element.nodeType === 1 && element.isConnected;
+                    });
+                    if (current.length) {
+                        // 整页切换后重新编号；等上一轮排版结束再清理 TeX 标签。
+                        if (reset && MathJax.texReset) MathJax.texReset();
+                        return MathJax.typesetPromise(current).then(function(){
+                            Siren.rememberMath(current);
+                        });
+                    }
+                })
+                .catch(function(error){ console.error('MathJax:', error); });
+            return Siren.mathQueue;
+        },
+        clearMath: function(elements){
+            if (window.MathJax && MathJax.typesetClear) MathJax.typesetClear(elements);
+        },
+        rememberMath: function(elements){
+            // PJAX 克隆 DOM 时保留原公式，缓存返回后重新注册。
+            MathJax.startup.document.getMathItemsWithin(elements).forEach(function(math){
+                math.typesetRoot.setAttribute('data-siren-math', JSON.stringify([math.math, math.display, math.inputJax.name]));
+            });
+            // 排版期间可能已经切页，清理刚完成的离屏公式。
+            Siren.clearMath(elements.filter(function(element){ return !element.isConnected; }));
+        },
+        restoreMath: function(contents){
+            $(contents).find('[data-siren-math]').each(function(){
+                var math = JSON.parse(this.getAttribute('data-siren-math')),
+                    source = math[2] === 'MathML'
+                        ? new DOMParser().parseFromString(math[0], 'application/xml').documentElement
+                        : document.createTextNode((math[1] ? '\\[' : '\\(') + math[0] + (math[1] ? '\\]' : '\\)'));
+                this.replaceWith(source);
+            });
+        },
 
         // 移动端菜单
         MN: function(){
@@ -198,10 +241,17 @@ var home = location.href,
 
         // 背景视频
         splay: function(){ // 播放
-            $('#video-btn').addClass('video-pause').removeClass('video-play').show();
-            $('.video-stu').css({"bottom":"-100px"});
-            $('.focusinfo').css({"top":"-999px"});
-            s.play();
+            return s.play().then(function(){
+                $('#video-btn').addClass('video-pause videolive').removeClass('video-play loadvideo').show();
+                $('#video-add').show();
+                $('.video-stu').css({"bottom":"-100px"});
+                $('.focusinfo').css({"top":"-999px"});
+            }).catch(function(error){
+                if (error.name === 'AbortError') return; // 换源或暂停会中断尚未完成的播放。
+                Siren.spause();
+                $('#video-btn').removeClass('videolive').show();
+                $('.video-stu').text('无法开始播放，请点击重试').css({"bottom":"0px"});
+            });
         },
         spause: function(){ // 暂停
             $('#video-btn').addClass('video-play').removeClass('video-pause');
@@ -209,39 +259,78 @@ var home = location.href,
             s.pause();
         },
         liveplay: function(){ // 自动续播 - 播放
-            if (s.oncanplay != undefined && $('.haslive').length > 0){ // 检查视频数据
+            if ($('.haslive').length > 0){ // 检查视频数据
                 if ($('.videolive').length > 0){ // 检查播放状态
                     Siren.splay();
                 }
             }
         },
         livepause: function(){
-            if (s.oncanplay != undefined && $('.haslive').length > 0){ // 检查视频数据
+            if ($('.haslive').length > 0){ // 检查视频数据
                 Siren.spause();
                 $('.video-stu').css({"bottom":"0px"}).html('已暂停 ...');
             }
         },
+        resetVideo: function(message){
+            if (Siren.hls) {
+                Siren.hls.destroy();
+                Siren.hls = null;
+            }
+            s.oncanplay = null;
+            s.pause();
+            s.removeAttribute('src');
+            s.load();
+            $('#video-btn').addClass('loadvideo video-play').removeClass('video-pause videolive haslive').show();
+            $('#video-add').hide();
+            $('.focusinfo').css({"top":"49.3%"});
+            $('.video-stu').text(message || '').css({"bottom": message ? "0px" : "-100px"});
+        },
         addsource: function(){
-            $('.video-stu').html('正在载入视频 ...').css({"bottom":"0px"});
-            var t = Poi.movies.name.split(","), // 视频列表
-                _t = t[Math.floor(Math.random() * t.length)]; // 随机抽取视频
-            $('#bgvideo').attr('src',Poi.movies.url+'/'+ _t +'.mp4');
-            $('#bgvideo').attr('video-name',_t);
+            Siren.resetVideo();
+            var sources = Poi.movies.sources;
+            if (!sources.length) {
+                Siren.resetVideo('请先设置视频列表');
+                return;
+            }
+            var source = new URL(sources[Math.floor(Math.random() * sources.length)], location.href),
+                isHls = /\.m3u8$/i.test(source.pathname) || source.searchParams.get('action') === 'siren_cloud_video_play';
+            $('#video-btn').removeClass('loadvideo').addClass('videolive').hide();
+            $('.video-stu').text('正在载入视频 ...').css({"bottom":"0px"});
+            s.oncanplay = function(){
+                s.oncanplay = null;
+                $('#video-btn').addClass('haslive').show();
+                if ($('h1.main-title').length) {
+                    Siren.splay();
+                } else {
+                    Siren.spause();
+                    $('.video-stu').text('已暂停 ...').css({"bottom":"0px"});
+                }
+            };
+            if (isHls) {
+                if (window.Hls && Hls.isSupported()) {
+                    Siren.hls = new Hls();
+                    Siren.hls.on(Hls.Events.ERROR, function(event, data){
+                        if (data.fatal) Siren.resetVideo('视频加载失败，请点击重试');
+                    });
+                    Siren.hls.loadSource(source.href);
+                    Siren.hls.attachMedia(s);
+                } else if (s.canPlayType('application/vnd.apple.mpegurl')) {
+                    s.src = source.href;
+                } else {
+                    Siren.resetVideo('当前浏览器不支持 HLS 视频');
+                }
+            } else {
+                s.src = source.href;
+            }
         },
 
         // 加载视频
         LV: function(){
+            if (!s || Poi.movies === 'close') return;
             var _btn = $('#video-btn');
             _btn.on('click', function(){
                 if ($(this).hasClass('loadvideo')){
-                    $(this).addClass('video-pause').removeClass('loadvideo').hide();
                     Siren.addsource();
-                    s.oncanplay = function() { // 数据可用时
-                        Siren.splay();
-                        $('#video-add').show();
-                        _btn.addClass('videolive');
-                        _btn.addClass('haslive'); // MDZZ
-                    }
                 }else{
                     if ($(this).hasClass('video-pause')){
                         Siren.spause();
@@ -252,15 +341,9 @@ var home = location.href,
                         _btn.addClass('videolive'); // 用于判断切换页面时的状态
                     }
                 }
-                s.onended = function(){ // 播放结束后
-                    $('#bgvideo').attr('src','');
-                    $('#video-add').hide();
-                    _btn.addClass('loadvideo').removeClass('video-pause');
-                    _btn.removeClass('videolive');
-                    _btn.removeClass('haslive');
-                    $('.focusinfo').css({"top":"49.3%"});
-                }
             });
+            s.onended = function(){ Siren.resetVideo(); };
+            s.onerror = function(){ Siren.resetVideo('视频加载失败，请点击重试'); };
             $('#video-add').on('click', function(){
                 Siren.addsource();
             });
@@ -273,9 +356,7 @@ var home = location.href,
                     var _height = $(window).height();
                     $('#centerbg').css({'height':_height});
                     $('#bgvideo').css({'min-height':_height});
-                    $(window).resize(function(){
-                        Siren.AH();
-                    });
+                    $(window).off('resize.sirenHeight').on('resize.sirenHeight', Siren.AH);
                 }
             }else{
                 $('.headertop').addClass('headertop-bar');
@@ -312,8 +393,13 @@ var home = location.href,
             // 归档页
             $('.archives').hide();
             $('.archives:first').show();
-            $('#archives-temp h3').click(function() {
-                $(this).next().slideToggle('fast');
+            $('#archives-temp h3').each(function() {
+                $(this).find('button').attr('aria-expanded', String($(this).next('.archives').is(':visible')));
+            }).off('click.sirenArchives').on('click.sirenArchives', function() {
+                var entries = $(this).next('.archives').stop(true, true);
+                var expanded = !entries.is(':visible');
+                entries.slideToggle('fast');
+                $(this).find('button').attr('aria-expanded', String(expanded));
                 return false;
             });
 
@@ -331,7 +417,7 @@ var home = location.href,
                 $('.js-toggle-search').toggleClass('is-active');
                 $('.js-search').toggleClass('is-visible');
             });
-            $('.search_close').on('click', function () {
+            $('.search_close').off('click.sirenSearch').on('click.sirenSearch', function () {
                 if ($('.js-search').hasClass('is-visible')){
                     $('.js-toggle-search').toggleClass('is-active');
                     $('.js-search').toggleClass('is-visible');
@@ -380,7 +466,6 @@ var home = location.href,
 
         // AJAX加载文章
         XLS: function(){
-            $body=(window.opera)?(document.compatMode=="CSS1Compat"?$('html'):$('body')):$('html,body');
             $('body').on('click', '#pagination a', function(){
                 $(this).addClass("loading").text("");
                 $.ajax({
@@ -391,6 +476,7 @@ var home = location.href,
                         nextHref = $(data).find("#pagination a").attr("href");
                         // In the new content
                         $("#main").append(result.fadeIn(500));
+                        Siren.typesetMath(result.toArray());
                         $("#pagination a").removeClass("loading").text("Previous");
                         if ( nextHref != undefined ) {
                             $("#pagination a").attr("href", nextHref);
@@ -412,16 +498,23 @@ var home = location.href,
                 __cancel_text = __cancel.text(),
                 __list = 'commentwrap'; // your comment wrapprer
             jQuery(document).on("submit", "#commentform", function() {
+                var form = this;
                 jQuery.ajax({
                     url: Poi.ajaxurl,
                     data: jQuery(this).serialize() + "&action=ajax_comment",
                     type: jQuery(this).attr('method'),
-                    beforeSend: addComment.createButterbar("提交中...."),
+                    beforeSend: function() {
+                        addComment.createButterbar("提交中....");
+                    },
                     error: function(request) {
+                        if (!form.isConnected) return;
                         var t = addComment;
-                        t.createButterbar(request.responseText);
+                        t.createButterbar(request.responseText || '评论提交失败，请稍后重试');
                     },
                     success: function(data) {
+                        if (!form.isConnected) return;
+                        var comment = jQuery(data),
+                            list = jQuery('#comments .commentwrap').filter('ul, ol').first();
                         jQuery('textarea').each(function() {
                             this.value = ''
                         });
@@ -429,22 +522,22 @@ var home = location.href,
                             cancel = t.I('cancel-comment-reply-link'),
                             temp = t.I('wp-temp-form-div'),
                             respond = t.I(t.respondId),
-                            post = t.I('comment_post_ID').value,
                             parent = t.I('comment_parent').value;
                         if (parent != '0') {
-                            jQuery('#respond').before('<ol class="children">' + data + '</ol>');
-                        } else if (!jQuery('.' + __list ).length) {
+                            jQuery('#respond').before(jQuery('<ol class="children"></ol>').append(comment));
+                        } else if (!list.length) {
+                            jQuery('#comments .notification-hidden').closest('.commentwrap').remove();
                             if (Poi.formpostion == 'bottom') {
-                                jQuery('#respond').before('<ol class="' + __list + '">' + data + '</ol>');
+                                jQuery('#respond').before(jQuery('<ol class="' + __list + '"></ol>').append(comment));
                             } else {
-                                jQuery('#respond').after('<ol class="' + __list + '">' + data + '</ol>');
+                                jQuery('#respond').after(jQuery('<ol class="' + __list + '"></ol>').append(comment));
                             }
 
                         } else {
                             if (Poi.order == 'asc') {
-                                jQuery('.' + __list ).append(data); // your comments wrapper
+                                list.append(comment);
                             } else {
-                                jQuery('.' + __list ).prepend(data); // your comments wrapper
+                                list.prepend(comment);
                             }
                         }
                         t.createButterbar("提交成功");
@@ -458,6 +551,7 @@ var home = location.href,
                         }
                         if (Poi.code_pjax == 'prism') { Prism.highlightAll() } // 重载 PRISM.JS 代码高亮
                         if (Poi.code_pjax == 'highlight') { highlight_pjax() } // 重载 HIGHLIGHT.JS 代码高亮
+                        Siren.typesetMath(comment.toArray());
                     }
                 });
                 return false;
@@ -512,36 +606,53 @@ var home = location.href,
                 },
                 createButterbar: function(message) {
                     var t = this;
+                    clearTimeout(t.butterbarTimer);
                     t.clearButterbar();
                     jQuery("body").append('<div class="butterBar butterBar--center"><p class="butterBar-message">' + message + '</p></div>');
-                    setTimeout("jQuery('.butterBar').remove()", 3000);
+                    t.butterbarTimer = setTimeout(t.clearButterbar, 3000);
                 }
             };
         },
 
         // AJAX评论分页
         XCP: function(){
-            $body=(window.opera)?(document.compatMode=="CSS1Compat"?$('html'):$('body')):$('html,body');
+            var loading;
             $('body').on('click', '#comments-navi a', function(e){
                 e.preventDefault();
+                var section = $(this).closest('#comments'),
+                    loader = section.find('#loading-comments');
+                if (loading === section[0]) return;
+                loading = section[0];
+                loader.slideDown();
                 $.ajax({
                     type: "GET",
                     url: $(this).attr('href'),
-                    beforeSend: function(){
-                        $('#comments-navi').remove();
-                        $('ul.commentwrap').remove();
-                        $('#loading-comments').slideDown();
-                        $body.animate({scrollTop: $('#comments-list-title').offset().top - 65}, 800 );
-                    },
                     dataType: "html",
+                    timeout: 15000,
+                    complete: function(){
+                        if (loading === section[0]) loading = null;
+                        loader.slideUp('fast');
+                    },
+                    error: function(){
+                        if (section[0].isConnected) addComment.createButterbar('评论加载失败，请稍后重试');
+                    },
                     success: function(out){
-                        result = $(out).find('ul.commentwrap');
-                        nextlink = $(out).find('#comments-navi');
-                        $('#loading-comments').slideUp('fast');
-                        $('#loading-comments').after(result.fadeIn(500));
-                        $('ul.commentwrap').after(nextlink);
-                        if (Poi.code_pjax == 'prism') { Prism.highlightAll() } // 重载 PRISM.JS 代码高亮
-                        if (Poi.code_pjax == 'highlight') { highlight_pjax() } // 重载 HIGHLIGHT.JS 代码高亮
+                        if (!section[0].isConnected) return;
+                        var page = $(out),
+                            comments = page.find('ul.commentwrap').first(),
+                            navigation = page.find('#comments-navi');
+                        if (!comments.length) {
+                            addComment.createButterbar('评论加载失败，请稍后重试');
+                            return;
+                        }
+                        Siren.clearMath(section.find('ul.commentwrap, ol.commentwrap').toArray());
+                        section.find('ul.commentwrap, ol.commentwrap, #comments-navi').remove();
+                        loader.after(comments.hide().fadeIn(500));
+                        comments.after(navigation);
+                        $('html, body').animate({scrollTop: $('#comments-list-title').offset().top - 65}, 800);
+                        if (Poi.code_pjax == 'prism') { Prism.highlightAll() }
+                        if (Poi.code_pjax == 'highlight') { highlight_pjax() }
+                        Siren.typesetMath(comments.toArray());
                     }
                 });
             });
@@ -584,6 +695,7 @@ var home = location.href,
             if (Poi.laziness_img == 'open') { lazinessImg() } // 重载图片懒加载
             if (Poi.code_pjax == 'prism') { Prism.highlightAll() } // 重载 PRISM.JS 代码高亮
             if (Poi.code_pjax == 'highlight') { highlight_pjax() } // 重载 HIGHLIGHT.JS 代码高亮
+            Siren.typesetMath($('#page').children().toArray(), true);
         }
 
     }
@@ -602,6 +714,12 @@ $(function() {
     Siren.MN(); // 移动端菜单
     Siren.IA(); // 输入框特效
     Siren.LV(); // 加载视频
+    if (window.MathJax && MathJax.startup) {
+        var initialMath = $('#page').children().toArray();
+        Siren.mathQueue = MathJax.startup.promise.then(function(){
+            Siren.rememberMath(initialMath); // 首屏已由 MathJax 自动排版。
+        }).catch(function(error){ console.error('MathJax:', error); });
+    }
 
     if (Poi.pjax){
         $(document).pjax('a[target!=_top]', '#page', {
@@ -610,7 +728,10 @@ $(function() {
         }).on('pjax:send', function() {
             NProgress.start();
             Siren.MNH();
-        }).on('pjax:complete', function() {
+        }).on('pjax:beforeReplace', function(event, contents) {
+            Siren.clearMath([document.getElementById('page')]);
+            Siren.restoreMath(contents);
+        }).on('pjax:end', function() {
             Siren.AH();
             Siren.PE();
             Siren.CE();
@@ -628,12 +749,6 @@ $(function() {
                 $('.js-search').toggleClass('is-visible');
             }
         });
-        window.addEventListener('popstate',function(e) {
-            Siren.AH();
-            Siren.PE();
-            Siren.CE();
-            Siren.REL();
-        },false);
     }
 
     // 点赞
@@ -789,14 +904,14 @@ function highlight_pjax() {
 // 网站标题自动判断
 function window_title() {
     var OriginTitile = document.title;
-    var titleTime;
-    document.addEventListener('visibilitychange', function () {
+    clearTimeout(window_title.timer);
+    $(document).off('visibilitychange.sirenTitle').on('visibilitychange.sirenTitle', function () {
         if (document.hidden) {
             document.title = title.blur;
-            clearTimeout(titleTime);
+            clearTimeout(window_title.timer);
         } else {
             document.title = title.focus;
-            titleTime = setTimeout(function () {
+            window_title.timer = setTimeout(function () {
                 document.title = OriginTitile;
             }, 2000);
         }
@@ -806,3 +921,33 @@ function window_title() {
 if (Poi.web_title) { window_title() }
 if (Poi.picture_m == 'single') { initImg() }
 if (Poi.laziness_img == 'open') { lazinessImg() }
+function get_captcha(button) {
+    var captchaButton = jQuery(button);
+    if (captchaButton.prop('disabled')) {
+        return;
+    }
+    jQuery.ajax({
+        url: Poi.ajaxurl,
+        data: {
+            action: 'captcha',
+            mail: jQuery('#email').val(),
+            nonce: captchaButton.attr('data-nonce')
+        },
+        type: 'POST',
+        dataType: 'text',
+        timeout: 30000,
+        beforeSend: function() {
+            captchaButton.prop('disabled', true);
+            addComment.createButterbar("正在获取验证码....");
+        },
+        complete: function() {
+            captchaButton.prop('disabled', false);
+        },
+        error: function(request) {
+            addComment.createButterbar(request.responseText || '请求失败，请稍后重试');
+        },
+        success: function(data) {
+            addComment.createButterbar(data || '请求失败，请稍后重试');
+        }
+    });
+}

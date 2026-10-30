@@ -296,15 +296,37 @@ add_action('after_setup_theme', 'akina_content_width', 0);
 /**
  * Enqueue Scripts And Styles
  */
+function siren_video_sources(): array
+{
+    $list = akina_option('amv_sources', null);
+    if ($list !== null) {
+        return array_values(array_filter(array_map('trim', preg_split('/\R/', $list))));
+    }
+    // Existing installations keep playing until the combined field is saved.
+    $sources = array();
+    $base = rtrim((string) akina_option('amv_url', ''), '/');
+    foreach (array_filter(array_map('trim', explode(',', (string) akina_option('amv_title', '')))) as $name) {
+        $url = preg_match('~^https?://~i', $name) ? $name : $base . '/' . $name;
+        if (!preg_match('/\.(mp4|m3u8)$/i', wp_parse_url($url, PHP_URL_PATH) ?? '') &&
+            !str_contains($url, 'action=siren_cloud_video_play')) {
+            $url = preg_replace('~(?=[?#]|$)~', '.mp4', $url, 1);
+        }
+        $sources[] = $url;
+    }
+    return $sources;
+}
+
 function akina_scripts()
 {
     wp_enqueue_style('siren', get_stylesheet_uri(), array(), SIREN_VERSION);
-    wp_enqueue_script('jq', 'https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js', array(), SIREN_VERSION, true);
-    wp_enqueue_script('pjax-libs', get_template_directory_uri() . '/js/jquery.pjax.js', array(), SIREN_VERSION, true);
+    wp_enqueue_script('jq', 'https://unpkg.com/jquery@2.2.4/dist/jquery.min.js', array('jquery'), SIREN_VERSION, true);
+    $pjax_url = add_query_arg('v', filemtime(get_template_directory() . '/js/jquery.pjax.js'), get_template_directory_uri() . '/js/jquery.pjax.js');
+    wp_enqueue_script('pjax-libs', $pjax_url, array('jq'), null, true);
     wp_enqueue_script('input', get_template_directory_uri() . '/js/input.min.js', array(), SIREN_VERSION, true);
-    wp_enqueue_script('app', get_template_directory_uri() . '/js/app.js', array(), SIREN_VERSION, true);
+    $app_url = add_query_arg('v', filemtime(get_template_directory() . '/js/app.js'), get_template_directory_uri() . '/js/app.js');
+    wp_enqueue_script('app', $app_url, array('jq', 'pjax-libs', 'input'), null, true);
     $mv_live = akina_option('focus_mvlive') ? 'open' : 'close';
-    $movies = akina_option('focus_amv') ? array('url' => akina_option('amv_url'), 'name' => akina_option('amv_title'), 'live' => $mv_live) : 'close';
+    $movies = akina_option('focus_amv') ? array('sources' => siren_video_sources(), 'live' => $mv_live) : 'close';
     $auto_height = akina_option('focus_height') ? 'fixed' : 'auto';
     $live2d_tips = akina_option('live2d_s') ? 'open' : 'close';
     $hitokoto = akina_option('hitokoto_o') ? 'open' : 'close';
@@ -352,6 +374,8 @@ require get_template_directory() . '/inc/customizer.php';
  */
 require get_template_directory() . '/inc/siren-update.php';
 require get_template_directory() . '/inc/categories-images.php';
+require_once get_template_directory() . '/inc/cloud-video.php';
+require get_template_directory() . '/inc/operations.php';
 
 /**
  * Disable Embeds
@@ -430,12 +454,9 @@ function restyle_text($number)
 
 function set_post_views()
 {
-    global $post;
-    $post_id = intval($post->ID);
-    $count_key = 'views';
-    $views = get_post_custom($post_id);
-    $views = intval($views['views'][0]);
     if (is_single() || is_page()) {
+        $post_id = get_queried_object_id();
+        $views = (int) get_post_meta($post_id, 'views', true);
         if (!update_post_meta($post_id, 'views', ($views + 1))) {
             add_post_meta($post_id, 'views', 1, true);
         }
@@ -446,15 +467,7 @@ add_action('get_header', 'set_post_views');
 
 function get_post_views($post_id)
 {
-    $count_key = 'views';
-    $views = get_post_custom($post_id);
-    $views = intval($views['views'][0]);
-    $post_views = intval(post_custom('views'));
-    if ($views == '') {
-        return 0;
-    } else {
-        return restyle_text($views);
-    }
+    return restyle_text((int) get_post_meta($post_id, 'views', true));
 }
 
 /**
@@ -611,12 +624,26 @@ function akina_infinite_scroll_render()
 /**
  * 编辑器下载按钮
  */
-function download($atts, $content = null)
+function siren_download_button($content, $label)
 {
-    return '<a class="download" href="' . $content . '" rel="external" target="_blank" title="下载地址"><span><i class="iconfont down">&#xe69f;</i>Download</span></a>' ;
+    $url = esc_url(trim(recode($content)));
+    if ($url === '') {
+        return '';
+    }
+    return '<a class="download" href="' . $url . '" rel="external noopener" target="_blank" title="下载地址"><span><i class="iconfont down">&#xe69f;</i>' . esc_html($label) . '</span></a>';
 }
 
-add_shortcode("download", "download");
+function download($atts, $content = null)
+{
+    return siren_download_button($content, 'Download');
+}
+add_shortcode('download', 'download');
+
+function backup($atts, $content = null)
+{
+    return siren_download_button($content, 'Backup');
+}
+add_shortcode('backup', 'backup');
 
 function bolo_after_wp_tiny_mce($mce_settings)
 { ?>
@@ -719,7 +746,6 @@ add_action('comment_post', 'comment_mail_notify');
  */
 function sig_allowed_html_tags_in_comments()
 {
-    define('CUSTOM_TAGS', true);
     global $allowedtags;
     $allowedtags = array(
         'a' => array(
@@ -736,14 +762,15 @@ function sig_allowed_html_tags_in_comments()
 add_action('init', 'sig_allowed_html_tags_in_comments', 10);
 
 /**
- * 后台编辑器添加前台CSS
+ * 编辑区域样式，同时支持经典编辑器和区块编辑器。
  */
 function sig_add_editor_styles()
 {
-    add_editor_style('style.css');
+    add_theme_support('editor-styles');
+    add_editor_style('inc/css/editor-style.css');
 }
 
-add_action('init', 'sig_add_editor_styles');
+add_action('after_setup_theme', 'sig_add_editor_styles');
 
 /**
  * 净化图片多余标签结构
@@ -841,4 +868,61 @@ if (version_compare($wp_version, '5.1.1', '>=')) {
         }
         return $link;
     }
+}
+
+// 登录可见的隐藏内容。
+function login_visible($atts, $content = null)
+{
+    if (!is_user_logged_in() || is_feed() || $content === null) {
+        return '<p style="text-align: center;">此隐藏内容需要登录才可见哦</p>';
+    }
+    return recode($content);
+}
+add_shortcode('hide', 'login_visible');
+
+// Registration and comment email verification.
+require_once get_template_directory() . '/inc/captcha.php';
+add_filter('comment_form_field_cookies', '__return_empty_string');
+
+// 解析内部短代码，嵌套内容由各短代码回调处理。
+function recode($content)
+{
+    return do_shortcode($content ?? '');
+}
+
+/**
+ * 随机图API
+ */
+add_action('wp_ajax_nopriv_randimg', 'get_rd_bg_url');
+add_action('wp_ajax_randimg', 'get_rd_bg_url');
+function get_rd_bg_url(){
+	echo get_random_bg_url();
+	wp_die();
+}
+add_action('wp_ajax_nopriv_yzimg', 'get_rd_bg_url_hd');
+add_action('wp_ajax_yzimg', 'get_rd_bg_url_hd');
+function get_rd_bg_url_hd(){
+	wp_redirect(get_random_bg_url());
+	exit;
+}
+
+// 按访客区域显示内容。
+function cn_content($atts, $content = null)
+{
+    return is_china() ? recode($content) : '';
+}
+add_shortcode('china', 'cn_content');
+
+function ab_content($atts, $content = null)
+{
+    return is_china() ? '' : recode($content);
+}
+add_shortcode('abroad', 'ab_content');
+
+// 保留语言条件和本地 IP 库判断，每次请求只计算一次。
+require_once get_template_directory() . '/inc/ip-location.php';
+function is_china()
+{
+    static $china = null;
+    return $china ??= siren_visitor_is_china($_SERVER);
 }
